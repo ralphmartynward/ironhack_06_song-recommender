@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HitMatch</title>
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script>
+        $(function() {
+            $("#search").autocomplete({
+                source: "{{ url_for('search') }}",
+                minLength: 2,
+                select: function(event, ui) {
+                    // Update the hidden input field with the selected song's ID
+                    $('#song-id').val(ui.item.value);
+                    // Prevent the default behavior of updating the search input with the song's ID
+                    event.preventDefault();
+                    // Update the search input with the selected song's label
+                    $('#search').val(ui.item.label);
+                }
+            });
+        });
+    
+        function getAudioFeatures() {
+            const songId = document.getElementById('song-id').value;
+            if (songId) {
+                $.getJSON("{{ url_for('audio_features') }}", { id: songId }, function(data) {
+                    console.log('Fetched audio features:', data);
+                    let audioFeaturesList = `<li>Cluster: ${data.cluster}</li>`;
+                    for (const feature in data) {
+                        if (feature !== 'cluster') {
+                            audioFeaturesList += `<li>${feature}: ${data[feature]}</li>`;
+                        }
+                    }
+                    document.getElementById('audio-features').innerHTML = `<ul>${audioFeaturesList}</ul>`;
+                })
+                .fail(function(jqxhr, textStatus, error) {
+                    console.error("Request Failed: " + textStatus + ", " + error);
+                });
+            }
+        }
+
+
+    </script>
+    
+    
+</head>
+<body>
+    <h1>HitMatch</h1>
+    <input type="text" id="search" placeholder="Search for a song or artist">
+    <form onsubmit="event.preventDefault(); getAudioFeatures();">
+        <input type="hidden" id="song-id">
+        <button type="submit">Get Song Features</button>
+    </form>
+    <div id="audio-features"></div>
+
+    <!-- Add the table structure after the "audio-features" div -->
+<div id="recommended-songs">
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Song</th>
+                <th>Artist</th>
+                <th>Link</th>
+            </tr>
+        </thead>
+        <tbody id="recommended-songs-body">
+        </tbody>
+    </table>
+</div>
+
+<!-- Update the getAudioFeatures function to also fetch the recommended songs -->
+<script>
+    function getAudioFeatures() {
+        const songId = document.getElementById('song-id').value;
+        if (songId) {
+            $.getJSON("{{ url_for('audio_features') }}", { id: songId }, function(data) {
+                console.log('Fetched audio features:', data);
+                let audioFeaturesList = `<li>Cluster: ${data.cluster}</li>`;
+                for (const feature in data) {
+                    if (feature !== 'cluster') {
+                        audioFeaturesList += `<li>${feature}: ${data[feature]}</li>`;
+                    }
+                }
+                document.getElementById('audio-features').innerHTML = `<ul>${audioFeaturesList}</ul>`;
+
+                // Fetch the recommended songs
+                const hot = 1; // Adjust the 'hot' value as needed
+                $.getJSON("{{ url_for('recommended_songs') }}", { id: songId, hot: hot }, function(recommendedSongs) {
+                    console.log('Fetched recommended songs:', recommendedSongs);
+                    let tableRows = '';
+                    recommendedSongs.forEach((song, index) => {
+                        tableRows += `<tr>
+                            <td>${index + 1}</td>
+                            <td>${song.name}</td>
+                            <td>${song.artists}</td>
+                            <td><a href="${song.url}" target="_blank">Listen</a></td>
+                        </tr>`;
+                    });
+                    document.getElementById('recommended-songs-body').innerHTML = tableRows;
+                });
+            });
+        }
+    }
+</script>
+
+<!-- Login with Spotify button -->
+<a href="/login" class="btn btn-primary">Login with Spotify</a>
+
+<!-- Recommended songs table -->
+<table id="recommended-songs" class="table">
+  <!-- ... (Your existing table content) ... -->
+</table>
+
+<!-- Add Playlist to Spotify button -->
+<form id="add-playlist-form" action="/create_playlist" method="post">
+  <input type="submit" value="Add Playlist to Spotify" class="btn btn-success" />
+</form>
+
+<script>
+  // ... (Your existing JavaScript code) ...
+
+  // After receiving the recommended songs, update the form with the song IDs
+  function showRecommendedSongs(songs) {
+    // ... (Your existing recommended songs rendering code) ...
+
+    // Add the song IDs as hidden inputs to the form
+    var form = document.getElementById("add-playlist-form");
+    songs.forEach(function(song) {
+      var input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "song_id[]";
+      input.value = song.id;
+      form.appendChild(input);
+    });
+  }
+</script>
+
+</body>
+</html>
